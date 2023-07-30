@@ -1,0 +1,11 @@
+streamlit_option_menu==0.3.2
+streamlit_authenticator==0.2.2
+matplotlib==3.5.2
+pandas==1.4.4
+numpy==1.21.5
+scipy==1.9.1
+scikit-learn==1.0.2
+terbilang==0.0.6
+num2words==0.5.12
+openpyxl==3.0.10
+xlsxwriter==3.0.3
