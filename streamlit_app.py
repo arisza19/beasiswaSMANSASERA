@@ -1,9 +1,5 @@
-import pickle
-from pathlib import Path
-
 import streamlit as st
 from streamlit_option_menu import option_menu
-import streamlit_authenticator as stauth
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +10,7 @@ from sklearn.metrics import davies_bouldin_score
 from num2words import num2words
 from functools import reduce
 
-class Navigation():
+class MainClass():
 
     def __init__(self):
         self.data = Data()
@@ -46,7 +42,7 @@ class Navigation():
         if (selected == 'Clustering'):
             self.clustering.menu_clustering()
 
-class Data():
+class Data(MainClass):
 
     def __init__(self):
         self.state = st.session_state.setdefault('state', {})
@@ -59,17 +55,11 @@ class Data():
         if 'dataprestasi' not in self.state:
             self.state['dataprestasi'] = pd.DataFrame()
 
-    # Fungsi judul halaman
-    def judul_halaman(self, header, subheader):
-        nama_app = "Aplikasi Rekomendasi Calon Penerima Beasiswa"
-        st.title(nama_app)
-        st.header(header)
-        st.subheader(subheader)
-
     def upload_datanilai(self):
         try:
             uploaded_file1 = st.file_uploader("Upload Data Nilai", type=["xlsx"], key="nilai")
             if uploaded_file1 is not None:
+                self.state['datanilai'] = pd.DataFrame()
                 fnilai = pd.ExcelFile(uploaded_file1)
                 list_of_dfs_nilai = []
                 for sheet in fnilai.sheet_names:
@@ -100,6 +90,7 @@ class Data():
         try:
             uploaded_file2 = st.file_uploader("Upload Data Ekstrakurikuler", type=["xlsx"], key="ekstrakurikuler")
             if uploaded_file2 is not None:
+                self.state['dataekstrakurikuler'] = pd.DataFrame()
                 fekstrakurikuler = pd.ExcelFile(uploaded_file2)
 
                 list_of_dfs_ekstrakurikuler = []
@@ -127,6 +118,7 @@ class Data():
         try:
             uploaded_file3 = st.file_uploader("Upload Data Ekonomi", type=["xlsx"], key="ekonomi")
             if uploaded_file3 is not None:
+                self.state['dataekonomi'] = pd.DataFrame()
                 fekonomi = pd.ExcelFile(uploaded_file3)
 
                 list_of_dfs_ekonomi = []
@@ -153,6 +145,7 @@ class Data():
         try:
             uploaded_file4 = st.file_uploader("Upload Data Rekap Jumlah Prestasi", type=["xlsx"], key="prestasi")
             if uploaded_file4 is not None:
+                self.state['dataprestasi'] = pd.DataFrame()
                 dataprestasi = pd.read_excel(uploaded_file4)
 
                 dataprestasi = dataprestasi.iloc[:, [1, 9]]
@@ -237,7 +230,7 @@ class Preprocessing(Data):
 
         if self.state['sizeoutliermtk'] > 0:
             st.write('Jumlah nilai outlier pada atribut Nilai Pengetahuan Matematika (W) =', str(self.state['sizeoutliermtk']))
-            st.write('Data yang memiliki akan dihaluskan menggunakan metode binning')
+            st.write('Data yang memiliki nilai outlier akan dihaluskan menggunakan metode binning')
             st.dataframe(self.state['outliermtk'])
         else:
             st.write('Tidak ditemukan nilai outlier pada atribut Nilai Pengetahuan Matematika (W)')
@@ -253,7 +246,7 @@ class Preprocessing(Data):
 
         if self.state['sizeoutlierind'] > 0:
             st.write('Jumlah nilai outlier pada atribut Nilai Pengetahuan Bahasa Indonesia =', str(self.state['sizeoutlierind']))
-            st.write('Data yang memiliki akan dihaluskan menggunakan metode binning')
+            st.write('Data yang memiliki nilai outlier akan dihaluskan menggunakan metode binning')
             st.dataframe(self.state['outlierind'])
         else:
             st.write('Tidak ditemukan nilai outlier pada atribut Nilai Pengetahuan Bahasa Indonesia')
@@ -269,7 +262,7 @@ class Preprocessing(Data):
 
         if self.state['sizeoutliering'] > 0:
             st.write('Jumlah nilai outlier pada atribut Nilai Pengetahuan Bahasa Inggris =', str(self.state['sizeoutliering']))
-            st.write('Data yang memiliki akan dihaluskan menggunakan metode binning')
+            st.write('Data yang memiliki nilai outlier akan dihaluskan menggunakan metode binning')
             st.dataframe(self.state['outliering'])
         else:
             st.write('Tidak ditemukan nilai outlier pada atribut Nilai Pengetahuan Bahasa Inggris')
@@ -285,7 +278,7 @@ class Preprocessing(Data):
 
         if self.state['sizeoutlierprs'] > 0:
             st.write('Jumlah nilai outlier pada atribut Jumlah =', str(self.state['sizeoutlierprs']))
-            st.write('Data yang memiliki akan dihaluskan menggunakan metode binning')
+            st.write('Data yang memiliki nilai outlier akan dihaluskan menggunakan metode binning')
             st.dataframe(self.state['outlierprs'])
         else:
             st.write('Tidak ditemukan nilai outlier pada atribut Jumlah')
@@ -451,8 +444,6 @@ class Preprocessing(Data):
         if not self.state['dataset'].empty:
             st.subheader('Data Hasil Preprocessing dan Transformation')
             st.dataframe(self.state['dataset'])
-            # st.dataframe(self.state['datasetasli'])
-
 
     def menu_preprocessing(self):
         try:
@@ -479,9 +470,6 @@ class Dbi(Data):
     def __init__(self):
         super().__init__()
         self.state['dbi'] = pd.DataFrame()
-        # self.state['x'] = self.state['df'].iloc[:, 4: 16]
-        # if 'results' not in self.state:
-        #     self.state['results'] = {}
 
     # Fungsi perhitungan DBI
     def dbi(self, input1, input2):
@@ -556,40 +544,19 @@ class Clustering(Data):
 
             self.state['clustering'] = self.state['datasetAHC'].copy()
             self.state['datahasil'] = self.state['dataset'].copy()
-            # self.state['x'] = self.state['df'].iloc[:, 4: 16]
             hc = AgglomerativeClustering(n_clusters = input_c, affinity = 'euclidean', linkage = 'ward')
             self.state['y_hc'] = hc.fit_predict(self.state['datasetAHC'])
-
-            # self.state['datahasil']['cluster'] = pd.DataFrame(self.state['y_hc'])
-            # self.state['datahasil'] = self.state['datahasil'].sort_values(by='cluster')
-            # self.state['datahasil'] = self.state['datahasil'].reset_index(drop=True)
-            # self.state['datahasil']['cluster'] = self.state['datahasil']['cluster']+1
-
-            # self.state['clustering']['cluster'] = pd.DataFrame(self.state['y_hc'])
-            # self.state['clustering'] = self.state['clustering'].sort_values(by='cluster')
-            # self.state['clustering'] = self.state['clustering'].reset_index(drop=True)
-            # self.state['clustering']['cluster'] = self.state['clustering']['cluster']+1
 
             self.state['datasetasli']['cluster'] = pd.DataFrame(self.state['y_hc'])
             self.state['datasetasli'] = self.state['datasetasli'].sort_values(by='cluster')
             self.state['datasetasli'] = self.state['datasetasli'].reset_index(drop=True)
             self.state['datasetasli']['cluster'] = self.state['datasetasli']['cluster']+1
             
-
-            self.state['show_clustering'] = self.state['clustering'].copy()
         except(ValueError, IndexError):
             st.error("Nilai jumlah cluster tidak valid")
 
     def show_cluster(self, input_c):
         try:
-            # Ubah value
-            # self.state['show_clustering']['Pekerjaan Ayah'] = self.state['show_clustering']['Pekerjaan Ayah'].replace([1,2,3,4,5,6,7,8,9,10,11,12], ['PNS/TNI/POLRI/BUMN/ASN/Guru', 'Pensiunan', 'Pegawai Swasta', 'Wiraswasta', 'Freelancer', 'Sopir/Driver', 'Security', 'Asisten Rumah Tangga/Cleaning Service', 'Petani/Nelayan', 'Tukang/Pekerjaan Tidak Tetap', 'Tidak Bekerja', 'Telah Meninggal Dunia'])
-            # self.state['show_clustering']['Pekerjaan Ibu'] = self.state['show_clustering']['Pekerjaan Ibu'].replace([1,2,3,4,5,6,7,8,9,10,11,12], ['PNS/TNI/POLRI/BUMN/ASN/Guru', 'Pensiunan', 'Pegawai Swasta', 'Wiraswasta', 'Freelancer', 'Sopir/Driver', 'Security', 'Asisten Rumah Tangga/Cleaning Service', 'Petani/Nelayan', 'Tukang/Pekerjaan Tidak Tetap', 'Tidak Bekerja', 'Telah Meninggal Dunia'])
-            # self.state['show_clustering']['Penghasilan Ayah'] = self.state['show_clustering']['Penghasilan Ayah'].replace([1,2,3,4,5,6,7,8,9,10], ['>7 juta', '6 - 7 juta', '5 - 5,9 juta', '4 - 4,9 juta', '3 - 3,9 juta', '2 - 2,9 juta', '1 - 1,9 juta', '500 - 900 ribu', '<500 ribu', 'Tidak Berpenghasilan'])
-            # self.state['show_clustering']['Penghasilan Ibu'] = self.state['show_clustering']['Penghasilan Ibu'].replace([1,2,3,4,5,6,7,8,9,10], ['>7 juta', '6 - 7 juta', '5 - 5,9 juta', '4 - 4,9 juta', '3 - 3,9 juta', '2 - 2,9 juta', '1 - 1,9 juta', '500 - 900 ribu', '<500 ribu', 'Tidak Berpenghasilan'])
-            # self.state['show_clustering']['Transportasi'] = self.state['show_clustering']['Transportasi'].replace([1,2,3,4,5,6,7], ['Sepeda Motor', 'Antar Jemput menggunakan Kendaraan Pribadi', 'Menumpang Teman', 'Ojek/Ojek Online', 'Sepeda', 'Transportasi Umum', 'Jalan Kaki'])
-            # self.state['show_clustering']['Memiliki KIP'] = self.state['show_clustering']['Memiliki KIP'].replace([0,1], ['Tidak', 'Ya'])
-            
             for i in range(1,input_c+1):
                 self.state['dfi']["clustering{0}".format(i)] = self.state['datasetasli'].loc[self.state['datasetasli']['cluster'] == i+1-1]
                 self.state['nrs']["clustering{0}".format(i)] = self.state['datasetasli'].loc[self.state['datasetasli']['cluster'] == i+1-1]
@@ -679,15 +646,6 @@ class Clustering(Data):
             frek = str(self.state['datarekomendasi']['f'].iloc[0])
             grek = str(self.state['datarekomendasi']['g'].iloc[0])
 
-            # Menampilkan DataFrame
-            # st.dataframe(self.state['datarekomendasi'])
-            # st.write(arek)
-            # st.write(brek)
-            # st.write(crek)
-            # st.write(drek)
-            # st.write(erek)
-            # st.write(frek)
-            # st.write(grek)
             st.write('**Kesimpulan Rekomendasi**')
             st.write('Kelompok yang direkomendasikan untuk mendapatkan beasiswa adalah cluster ' + grek+
                     ', di mana siswa dalam kelompok ini memiliki nilai rata-rata mata pelajaran Matematika bernilai ' +
@@ -740,6 +698,8 @@ class Clustering(Data):
         else:
             st.warning("Tidak ada data yang diupload atau data belum diupload sepenuhnya")
 
-nav = Navigation()
-nav.sidebar_menu()
-
+if __name__ == "__main__":
+    # Create an instance of the main class
+    main = MainClass()
+    
+main.sidebar_menu()
