@@ -10,9 +10,12 @@ from sklearn.metrics import davies_bouldin_score
 from num2words import num2words
 from functools import reduce
 
+st.set_page_config(page_title="Beasiswa SMANSASERA")
+
 class MainClass():
 
     def __init__(self):
+        #inisiasi objek
         self.data = Data()
         self.preprocessing = Preprocessing()
         self.dbi = Dbi()
@@ -45,6 +48,7 @@ class MainClass():
 class Data(MainClass):
 
     def __init__(self):
+        # Membuat state untuk menampung dataframe
         self.state = st.session_state.setdefault('state', {})
         if 'datanilai' not in self.state:
             self.state['datanilai'] = pd.DataFrame()
@@ -61,6 +65,8 @@ class Data(MainClass):
             if uploaded_file1 is not None:
                 self.state['datanilai'] = pd.DataFrame()
                 fnilai = pd.ExcelFile(uploaded_file1)
+
+                # Membaca file excel dari banyak sheet
                 list_of_dfs_nilai = []
                 for sheet in fnilai.sheet_names:
             
@@ -75,8 +81,10 @@ class Data(MainClass):
                 datanilai = datanilai.rename(columns=lambda x: x if not 'Unnamed' in str(x) else '')
                 datanilai.columns = datanilai.columns.map(' '.join)
 
+                # Mengambil atribut
                 datanilai = datanilai.iloc[:, [1, 2, 3, 18, 14, 26]]
 
+                # Rename atribut dan validasi atribut
                 datanilai.rename(columns = {'NIS  ':'NIS', 'Nama  ':'Nama',
                                 'L/P  ':'L/P', 'Matematika (W) Pengetahuan Nilai':'Nilai Pengetahuan Matematika (W)',
                                 'Bahasa Indonesia Pengetahuan Nilai':'Nilai Pengetahuan Bahasa Indonesia',
@@ -93,6 +101,7 @@ class Data(MainClass):
                 self.state['dataekstrakurikuler'] = pd.DataFrame()
                 fekstrakurikuler = pd.ExcelFile(uploaded_file2)
 
+                # Membaca file excel dari banyak sheet
                 list_of_dfs_ekstrakurikuler = []
                 for sheet in fekstrakurikuler.sheet_names:
                     
@@ -105,9 +114,11 @@ class Data(MainClass):
                 # Combine all DataFrames into one
                 dataekstrakurikuler = pd.concat(list_of_dfs_ekstrakurikuler, ignore_index=True)
 
+                # Mengambil atribut
                 dataekstrakurikuler = dataekstrakurikuler.iloc[:, [1, 4]]
                 dataekstrakurikuler = dataekstrakurikuler.fillna(method='ffill', limit = 4)
 
+                # Validasi atribut
                 dataekstrakurikuler.rename(columns = {'EKSTRAKURIKULER':'EKSTRAKURIKULER'}, errors="raise", inplace = True)
 
                 self.state['dataekstrakurikuler'] = dataekstrakurikuler
@@ -121,6 +132,7 @@ class Data(MainClass):
                 self.state['dataekonomi'] = pd.DataFrame()
                 fekonomi = pd.ExcelFile(uploaded_file3)
 
+                # Membaca file excel dari banyak sheet
                 list_of_dfs_ekonomi = []
                 for sheet in fekonomi.sheet_names:
                     
@@ -133,8 +145,10 @@ class Data(MainClass):
                 # Combine all DataFrames into one
                 dataekonomi = pd.concat(list_of_dfs_ekonomi, ignore_index=True)
 
+                # Mengambil atribut
                 dataekonomi = dataekonomi.iloc[:, [0, 3, 4, 5, 6, 7, 8, 9, 10]]
 
+                # Validasi atribut
                 dataekonomi.rename(columns = {'Pekerjaan Ayah':'Pekerjaan Ayah'}, errors="raise", inplace = True)
 
                 self.state['dataekonomi'] = dataekonomi
@@ -148,10 +162,12 @@ class Data(MainClass):
                 self.state['dataprestasi'] = pd.DataFrame()
                 dataprestasi = pd.read_excel(uploaded_file4)
 
+                # Mengambil atribut
                 dataprestasi = dataprestasi.iloc[:, [1, 9]]
                 dataprestasi = dataprestasi.dropna()
                 dataprestasi = dataprestasi.reset_index(drop=True)
 
+                # Validasi atribut
                 dataprestasi.rename(columns = {'Jumlah':'Jumlah'}, errors="raise", inplace = True)
 
                 self.state['dataprestasi'] = dataprestasi
@@ -331,6 +347,7 @@ class Preprocessing(Data):
         self.state['dataset'] = self.state['dataset'].dropna()
         self.state['dataset'] = self.state['dataset'].reset_index(drop=True)
 
+        # Inisiasi datasetasli untuk menyimpan dataset bersih yang tidak dibinning
         self.state['datasetasli'] = self.state['dataset'].copy()
         self.state['datasetasli'] = self.state['datasetasli'].sort_values(by=['NIS'])
 
@@ -346,74 +363,114 @@ class Preprocessing(Data):
                                     'Nilai Pengetahuan Bahasa Inggris', 'Jumlah Prestasi'], axis=1, inplace=True)
         
         if self.state['sizeoutliermtk'] > 0:
+            # Menghitung total baris data
             row1 = binmtk.index.size
+
+            # Mencari akar jumlah baris data
             squareroot1 = np.sqrt(row1)
+
+            # Membulatkan hasil akar
             binsum1 = np.round(squareroot1)
+
+            # Membuat label
             qlabels1 = []
             for i in range(1,int(binsum1)+1):
                 t1 = i
                 qlabels1.append(t1)
 
+            # Mengurutkan data dari yang terkecil
             binmtk = binmtk.sort_values(by=['Nilai Pengetahuan Matematika (W)'])
             binmtk = binmtk.reset_index(drop=True)
 
+            # Membuat bin dan memasukannya ke atribut Bin
             binsmtk = pd.qcut(binmtk.index, q=int(binsum1), labels=qlabels1)
             binmtk['Bin'] = binsmtk
 
+            # Mengganti nilai berdasarkan nilai rata-rata bin dan menghapus atribut Bin
             binmtk['Nilai Pengetahuan Matematika (W)'] = binmtk.groupby('Bin')['Nilai Pengetahuan Matematika (W)'].transform('mean')
             binmtk.drop(['Bin'], axis=1, inplace=True)
 
         if self.state['sizeoutlierind'] > 0:
+            # Menghitung total baris data
             row1 = binind.index.size
+
+            # Mencari akar jumlah baris data
             squareroot1 = np.sqrt(row1)
+            
+            # Membulatkan hasil akar
             binsum1 = np.round(squareroot1)
+            
+            # Membuat label
             qlabels1 = []
             for i in range(1,int(binsum1)+1):
                 t1 = i
                 qlabels1.append(t1)
 
+            # Mengurutkan data dari yang terkecil
             binind = binind.sort_values(by=['Nilai Pengetahuan Bahasa Indonesia'])
             binind = binind.reset_index(drop=True)
 
+            # Membuat bin dan memasukannya ke atribut Bin
             binsind = pd.qcut(binind.index, q=int(binsum1), labels=qlabels1)
             binind['Bin'] = binsind
 
+            # Mengganti nilai berdasarkan nilai rata-rata bin dan menghapus atribut Bin
             binind['Nilai Pengetahuan Bahasa Indonesia'] = binind.groupby('Bin')['Nilai Pengetahuan Bahasa Indonesia'].transform('mean')
             binind.drop(['Bin'], axis=1, inplace=True)
 
         if self.state['sizeoutliering'] > 0:
+            # Menghitung total baris data
             row1 = bining.index.size
+
+            # Mencari akar jumlah baris data
             squareroot1 = np.sqrt(row1)
+
+            # Membulatkan hasil akar
             binsum1 = np.round(squareroot1)
+
+            # Membuat label
             qlabels1 = []
             for i in range(1,int(binsum1)+1):
                 t1 = i
                 qlabels1.append(t1)
 
+            # Mengurutkan data dari yang terkecil
             bining = bining.sort_values(by=['Nilai Pengetahuan Bahasa Inggris'])
             bining = bining.reset_index(drop=True)
 
+            # Membuat bin dan memasukannya ke atribut Bin
             binsing = pd.qcut(bining.index, q=int(binsum1), labels=qlabels1)
             bining['Bin'] = binsing
 
+            # Mengganti nilai berdasarkan nilai rata-rata bin dan menghapus atribut Bin
             bining['Nilai Pengetahuan Bahasa Inggris'] = bining.groupby('Bin')['Nilai Pengetahuan Bahasa Inggris'].transform('mean')
             bining.drop(['Bin'], axis=1, inplace=True)
 
         if self.state['sizeoutlierprs'] > 0:
+            # Menghitung total baris data
             row2 = binprs.index.size
+
+            # Mencari akar jumlah baris data
             squareroot2 = np.sqrt(row2)
+
+            # Membulatkan hasil akar
             binsum2 = np.round(squareroot2)
+
+            # Membuat label
             qlabels2 = []
             for i in range(1,int(binsum2)+1):
                 t2 = i
                 qlabels2.append(t2)
 
+            # Mengurutkan data dari yang terkecil
             binprs = binprs.sort_values(by=['Jumlah Prestasi'])
             binprs = binprs.reset_index(drop=True)
 
+            # Membuat bin dan memasukannya ke atribut Bin
             binsprs = pd.qcut(binprs.index, q=int(binsum2), labels=qlabels2)
             binprs['Bin'] = binsprs
 
+            # Mengganti nilai berdasarkan nilai rata-rata bin dan menghapus atribut Bin
             binprs['Jumlah Prestasi'] = binprs.groupby('Bin')['Jumlah Prestasi'].transform('mean')
             binprs.drop(['Bin'], axis=1, inplace=True)
 
@@ -438,6 +495,7 @@ class Preprocessing(Data):
         self.state['datasetAHC']['Memiliki KIP'] = self.state['datasetAHC']['Memiliki KIP'].replace(['Tidak', 'Ya'], [0,1])
         self.state['datasetAHC']['Jumlah Saudara Kandung'] = self.state['datasetAHC']['Jumlah Saudara Kandung'].replace(['Tidak Memiliki Saudara Kandung'], [0])
 
+        # Pemilihan atribut yang akan dihitung untuk mining
         self.state['datasetAHC'] = self.state['datasetAHC'].iloc[:, 4:15]
 
     def tampil_dataset(self):
@@ -544,9 +602,12 @@ class Clustering(Data):
 
             self.state['clustering'] = self.state['datasetAHC'].copy()
             self.state['datahasil'] = self.state['dataset'].copy()
+
+            # Proses AHC
             hc = AgglomerativeClustering(n_clusters = input_c, affinity = 'euclidean', linkage = 'ward')
             self.state['y_hc'] = hc.fit_predict(self.state['datasetAHC'])
 
+            # Memberikan label cluster pada baris data
             self.state['datasetasli']['cluster'] = pd.DataFrame(self.state['y_hc'])
             self.state['datasetasli'] = self.state['datasetasli'].sort_values(by='cluster')
             self.state['datasetasli'] = self.state['datasetasli'].reset_index(drop=True)
@@ -558,9 +619,11 @@ class Clustering(Data):
     def show_cluster(self, input_c):
         try:
             for i in range(1,input_c+1):
+                # Memisahkan data ke masing-masing dataframe percluster
                 self.state['dfi']["clustering{0}".format(i)] = self.state['datasetasli'].loc[self.state['datasetasli']['cluster'] == i+1-1]
                 self.state['nrs']["clustering{0}".format(i)] = self.state['datasetasli'].loc[self.state['datasetasli']['cluster'] == i+1-1]
 
+                # Analisis karakteristik penghasilan ayah
                 self.state['nrs_pna']["clustering{0}".format(i)] = self.state['nrs']["clustering"+str(i+1-1)]['Penghasilan Ayah'].value_counts()
                 self.state['nrs_pna']["clustering"+str(i+1-1)] = pd.DataFrame(self.state['nrs_pna']["clustering"+str(i+1-1)])
                 self.state['nrs_pna']["clustering"+str(i+1-1)]['value'] = self.state['nrs_pna']["clustering"+str(i+1-1)].index
@@ -568,6 +631,7 @@ class Clustering(Data):
                 self.state['nrs_pna_rek']["clustering{0}".format(i)] = self.state['nrs_pna']["clustering"+str(i+1-1)].copy()
                 self.state['nrs_pna']["clustering"+str(i+1-1)]['value'] = self.state['nrs_pna']["clustering"+str(i+1-1)]['value'].replace([1,2,3,4,5,6,7,8,9,10],['berpenghasilan lebih dari 7 juta rupiah', 'berpenghasilan 6 sampai 7 juta rupiah', 'berpenghasilan 5 sampai 5,9 juta rupiah', 'berpenghasilan 4 sampai 4,9 juta rupiah', 'berpenghasilan 3 sampai 3,9 juta rupiah', 'berpenghasilan 2 sampai 2,9 juta rupiah', 'berpenghasilan 1 sampai 1,9 juta rupiah', 'berpenghasilan 500 sampai 900 ribu rupiah', 'berpenghasilan kurang dari 500 ribu rupiah', 'tidak berpenghasilan'])
 
+                # Analisis karakteristik penghasilan ibu
                 self.state['nrs_pni']["clustering{0}".format(i)] = self.state['nrs']["clustering"+str(i+1-1)]['Penghasilan Ibu'].value_counts()
                 self.state['nrs_pni']["clustering"+str(i+1-1)] = pd.DataFrame(self.state['nrs_pni']["clustering"+str(i+1-1)])
                 self.state['nrs_pni']["clustering"+str(i+1-1)]['value'] = self.state['nrs_pni']["clustering"+str(i+1-1)].index
@@ -575,6 +639,7 @@ class Clustering(Data):
                 self.state['nrs_pni_rek']["clustering{0}".format(i)] = self.state['nrs_pni']["clustering"+str(i+1-1)].copy()
                 self.state['nrs_pni']["clustering"+str(i+1-1)]['value'] = self.state['nrs_pni']["clustering"+str(i+1-1)]['value'].replace([1,2,3,4,5,6,7,8,9,10],['berpenghasilan lebih dari 7 juta rupiah', 'berpenghasilan 6 sampai 7 juta rupiah', 'berpenghasilan 5 sampai 5,9 juta rupiah', 'berpenghasilan 4 sampai 4,9 juta rupiah', 'berpenghasilan 3 sampai 3,9 juta rupiah', 'berpenghasilan 2 sampai 2,9 juta rupiah', 'berpenghasilan 1 sampai 1,9 juta rupiah', 'berpenghasilan 500 sampai 900 ribu rupiah', 'berpenghasilan kurang dari 500 ribu rupiah', 'tidak berpenghasilan'])
 
+                # Analisis karakteristik transportasi
                 self.state['tr']["clustering{0}".format(i)] = self.state['nrs']["clustering"+str(i+1-1)]['Transportasi'].value_counts()
                 self.state['tr']["clustering"+str(i+1-1)] = pd.DataFrame(self.state['tr']["clustering"+str(i+1-1)])
                 self.state['tr']["clustering"+str(i+1-1)]['value'] = self.state['tr']["clustering"+str(i+1-1)].index
@@ -585,6 +650,7 @@ class Clustering(Data):
             rekomendasi = []
 
             for i in range(1,input_c+1):
+                # Inisiasi karakteristik penghasilan ayah, penghasilan ibu, transportasi, dan rata2 ke3 mapel per cluster
                 pna = str(self.state['nrs_pna']["clustering"+str(i+1-1)]._get_value(0,1,takeable = True))
                 pni = str(self.state['nrs_pni']["clustering"+str(i+1-1)]._get_value(0,1,takeable = True))
                 tr = str(self.state['tr']["clustering"+str(i+1-1)]._get_value(0,1,takeable = True))
@@ -592,23 +658,19 @@ class Clustering(Data):
                 bind = str(round(self.state['nrs']["clustering"+str(i+1-1)]['Nilai Pengetahuan Bahasa Indonesia'].mean(),4))
                 bing = str(round(self.state['nrs']["clustering"+str(i+1-1)]['Nilai Pengetahuan Bahasa Inggris'].mean(),4))
 
+                # Mengambil karakteristik penghasilan ayah, penghasilan ibu, dan transportasi masing2 cluster
                 self.state['pnarek'] = str(self.state['nrs_pna_rek']["clustering"+str(i+1-1)]._get_value(0,1,takeable = True))
                 self.state['pnirek'] = str(self.state['nrs_pni_rek']["clustering"+str(i+1-1)]._get_value(0,1,takeable = True))
                 self.state['trrek'] = str(self.state['tr_rek']["clustering"+str(i+1-1)]._get_value(0,1,takeable = True))
 
+                # Reset index per dataframe berbeda
                 self.state['dfi']["clustering"+str(i+1-1)] = self.state['dfi']["clustering"+str(i+1-1)].reset_index(drop=True)
                 self.state['dfi']["clustering"+str(i+1-1)].index += 1
 
+                # Menampilkan tabel cluster dan karakteristiknya
                 terbilang_angka = num2words(i, lang='id', to='ordinal')
                 st.write('**Cluster** ' + terbilang_angka)
                 st.dataframe(self.state['dfi']["clustering"+str(i+1-1)])
-
-                # st.dataframe(self.state['nrs_pna']["clustering"+str(i+1-1)])
-                # st.dataframe(self.state['nrs_pni']["clustering"+str(i+1-1)])
-                # st.dataframe(self.state['tr']["clustering"+str(i+1-1)])
-                # st.write('MTK =', mtk)
-                # st.write('Indo =', bind)
-                # st.write('ingg =', bing)
 
                 st.write('Terlihat bahwa anggota yang tergabung ke dalam cluster ' + str(i),
                             'merupakan siswa yang memiliki nilai rata-rata mata pelajaran Matematika bernilai ' +
@@ -619,18 +681,18 @@ class Clustering(Data):
                             tr)
                 st.write(''); st.write('')
 
+                # Menyatukan karakteristik menjadi satu dataframe
                 rowrekomendasi = [self.state['pnarek'], self.state['pnirek'], self.state['trrek'], mtk, bind, bing, terbilang_angka]
                 rekomendasi.append(rowrekomendasi)
                 self.state['rekomendasi'] = pd.DataFrame(rekomendasi)
                 
+            # Ubah value ke numeric 
             self.state['rekomendasi'].columns = ['a','b','c','d','e','f','g']
             self.state['rekomendasi']['a'] = self.state['rekomendasi']['a'].replace(['>7 juta', '6 - 7 juta', '5 - 5,9 juta', '4 - 4,9 juta', '3 - 3,9 juta', '2 - 2,9 juta', '1 - 1,9 juta', '500 - 900 ribu', '<500 ribu', 'Tidak Berpenghasilan'], [1,2,3,4,5,6,7,8,9,10])
             self.state['rekomendasi']['b'] = self.state['rekomendasi']['b'].replace(['>7 juta', '6 - 7 juta', '5 - 5,9 juta', '4 - 4,9 juta', '3 - 3,9 juta', '2 - 2,9 juta', '1 - 1,9 juta', '500 - 900 ribu', '<500 ribu', 'Tidak Berpenghasilan'], [1,2,3,4,5,6,7,8,9,10])
             self.state['rekomendasi']['c'] = self.state['rekomendasi']['c'].replace(['Sepeda Motor', 'Antar Jemput menggunakan Kendaraan Pribadi', 'Menumpang Teman', 'Ojek/Ojek Online', 'Sepeda', 'Transportasi Umum', 'Jalan Kaki'], [1,2,3,4,5,6,7])
 
-            # st.dataframe(self.state['rekomendasi'])
-
-            # Membuat DataFrame dari data
+            # Membuat DataFrame baru dari dataframe rekomendasi untuk menampilkan deskripsi hasil rekomendasi
             self.state['datarekomendasi'] = pd.DataFrame(self.state['rekomendasi'], columns=['a','b','c','d','e','f','g'])
             self.state['datarekomendasi'] = self.state['datarekomendasi'].astype({'a':'int','b':'int','c':'int'})
             self.state['datarekomendasi'] = self.state['datarekomendasi'].sort_values(by = ['a','d','b','e','c','f'], ascending = [False,False,False,False,False,False])
@@ -638,6 +700,7 @@ class Clustering(Data):
             self.state['datarekomendasi']['b'] = self.state['datarekomendasi']['b'].replace([1,2,3,4,5,6,7,8,9,10],['berpenghasilan lebih dari 7 juta rupiah', 'berpenghasilan 6 sampai 7 juta rupiah', 'berpenghasilan 5 sampai 5,9 juta rupiah', 'berpenghasilan 4 sampai 4,9 juta rupiah', 'berpenghasilan 3 sampai 3,9 juta rupiah', 'berpenghasilan 2 sampai 2,9 juta rupiah', 'berpenghasilan 1 sampai 1,9 juta rupiah', 'berpenghasilan 500 sampai 900 ribu rupiah', 'berpenghasilan kurang dari 500 ribu rupiah', 'tidak berpenghasilan'])
             self.state['datarekomendasi']['c'] = self.state['datarekomendasi']['c'].replace([1,2,3,4,5,6,7],['menggunakan kendaraan sepeda motor', 'dengan diantar jemput menggunakan kendaraan pribadi', 'dengan menumpang teman', 'menggunakan ojek atau ojek online', 'menggunakan sepeda', 'menggunakan transportasi umum', 'dengan berjalan kaki'])            
 
+            # Mengambil nilai karakteristik teratas untuk menghasilkan cluster yang direkomendasikan
             arek = str(self.state['datarekomendasi']['a'].iloc[0])
             brek = str(self.state['datarekomendasi']['b'].iloc[0])
             crek = str(self.state['datarekomendasi']['c'].iloc[0])
@@ -646,6 +709,7 @@ class Clustering(Data):
             frek = str(self.state['datarekomendasi']['f'].iloc[0])
             grek = str(self.state['datarekomendasi']['g'].iloc[0])
 
+            # Menuliskan hasil rekomendasi
             st.write('**Kesimpulan Rekomendasi**')
             st.write('Kelompok yang direkomendasikan untuk mendapatkan beasiswa adalah cluster ' + grek+
                     ', di mana siswa dalam kelompok ini memiliki nilai rata-rata mata pelajaran Matematika bernilai ' +
@@ -658,6 +722,7 @@ class Clustering(Data):
         except(TypeError, KeyError, IndexError, AttributeError):
             st.write('')
 
+    # Fungsi ubah dataframe hasil clustering ke bentuk excel
     def to_excel(self, df):
         output = BytesIO()
         writer = pd.ExcelWriter(output, engine='xlsxwriter')
@@ -670,6 +735,7 @@ class Clustering(Data):
         processed_data = output.getvalue()
         return processed_data
     
+    # Fungsi mendownload file excel hasil clustering
     def download_clustering(self):
         df_xlsx = self.to_excel(self.state['datasetasli'])
         st.write('')
